@@ -7,9 +7,11 @@ import {
   Text,
   TextInput,
   View,
+  Switch,
 } from "react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { adicionarTarefa, getTarefas } from "@/back4app";
+
+import { adicionarTarefa, getTarefas, atualizarTarefa, removerTarefa } from "../../back4app";
 
 export default function TarefasPage() {
   const queryClient = useQueryClient();
@@ -17,12 +19,29 @@ export default function TarefasPage() {
     queryKey: ["tarefas"],
     queryFn: getTarefas,
   });
-  const mutation = useMutation({
+
+  const mutationAdd = useMutation({
     mutationFn: adicionarTarefa,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tarefas"] });
     },
   });
+
+
+  const mutationUpdate = useMutation({
+    mutationFn: ({ id, concluida }) => atualizarTarefa(id, concluida),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tarefas"] });
+    },
+  });
+
+  const mutationDelete = useMutation({
+    mutationFn: (id) => removerTarefa(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tarefas"] });
+    },
+  });
+
   const [descricao, setDescricao] = useState("");
 
   async function handleAdicionarTarefaPress() {
@@ -32,33 +51,52 @@ export default function TarefasPage() {
       ]);
       return;
     }
-    mutation.mutate({ descricao });
+    mutationAdd.mutate({ descricao, concluida: false });
     setDescricao("");
   }
 
+  const carregando = isFetching || mutationAdd.isPending || mutationUpdate.isPending || mutationDelete.isPending;
+
   return (
     <View style={styles.container}>
-      {(isFetching || mutation.isPending) && <ActivityIndicator size="large" />}
+      {carregando && <ActivityIndicator size="large" color="#0000ff" />}
+      
       <TextInput
         style={styles.input}
-        placeholder="Descrição"
+        placeholder="Descrição da nova tarefa"
         value={descricao}
         onChangeText={setDescricao}
       />
+      
       <Button
         title="Adicionar Tarefa"
         onPress={handleAdicionarTarefaPress}
-        disabled={mutation.isPending}
+        disabled={mutationAdd.isPending}
       />
+      
       <View style={styles.hr} />
+      
       <View style={styles.tasksContainer}>
         {data?.map((t) => (
-          <Text
-            key={t.objectId}
-            style={t.concluida && styles.strikethroughText}
-          >
-            {t.descricao}
-          </Text>
+          <View key={t.objectId} style={styles.taskRow}>
+            {/* O Switch controla o status de concluída */}
+            <Switch
+              value={t.concluida}
+              onValueChange={(novoValor) => 
+                mutationUpdate.mutate({ id: t.objectId, concluida: novoValor })
+              }
+            />
+            
+            <Text style={[styles.taskText, t.concluida && styles.strikethroughText]}>
+              {t.descricao}
+            </Text>
+
+            <Button 
+              title="Excluir" 
+              color="red" 
+              onPress={() => mutationDelete.mutate(t.objectId)} 
+            />
+          </View>
         ))}
       </View>
     </View>
@@ -69,27 +107,49 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     alignItems: "center",
-    padding: 10,
+    padding: 20,
+    backgroundColor: '#fff'
   },
   tasksContainer: {
-    paddingLeft: 15,
+    width: "100%",
+    paddingTop: 10,
   },
   input: {
-    borderColor: "black",
+    borderColor: "gray",
     borderWidth: 1,
-    width: "90%",
-    marginBottom: 5,
+    borderRadius: 8,
+    width: "100%",
+    marginBottom: 10,
+    padding: 10,
+    fontSize: 16,
   },
   hr: {
     height: 1,
-    backgroundColor: "black",
-    width: "95%",
-    marginVertical: 10,
+    backgroundColor: "#ccc",
+    width: "100%",
+    marginVertical: 15,
+  },
+  taskRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#f9f9f9',
+    padding: 10,
+    marginBottom: 10,
+    borderRadius: 8,
+    elevation: 2, 
+    shadowColor: '#000', 
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+  },
+  taskText: {
+    flex: 1,
+    marginHorizontal: 10,
+    fontSize: 16,
   },
   strikethroughText: {
-    textDecorationLine: "line-through", // Key property for strikethrough
-    textDecorationStyle: "solid", // Optional: Style of the line
-    textDecorationColor: "red", // Optional: Color of the line (iOS only)
-    // Other styles like fontSize, fontWeight, color can also be applied
+    textDecorationLine: "line-through",
+    color: "gray",
   },
 });
