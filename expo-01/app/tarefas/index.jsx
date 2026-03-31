@@ -8,8 +8,10 @@ import {
   TextInput,
   View,
   Switch,
+  TouchableOpacity,
 } from "react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "expo-router";
 
 import { adicionarTarefa, getTarefas, atualizarTarefa, removerTarefa } from "../../back4app";
 
@@ -26,7 +28,6 @@ export default function TarefasPage() {
       queryClient.invalidateQueries({ queryKey: ["tarefas"] });
     },
   });
-
 
   const mutationUpdate = useMutation({
     mutationFn: ({ id, concluida }) => atualizarTarefa(id, concluida),
@@ -79,7 +80,6 @@ export default function TarefasPage() {
       <View style={styles.tasksContainer}>
         {data?.map((t) => (
           <View key={t.objectId} style={styles.taskRow}>
-            {/* O Switch controla o status de concluída */}
             <Switch
               value={t.concluida}
               onValueChange={(novoValor) => 
@@ -87,9 +87,19 @@ export default function TarefasPage() {
               }
             />
             
-            <Text style={[styles.taskText, t.concluida && styles.strikethroughText]}>
-              {t.descricao}
-            </Text>
+            <Link 
+              href={{
+                pathname: "/tarefas/[id]",
+                params: { id: t.objectId, descricao: t.descricao }
+              }} 
+              asChild
+            >
+              <TouchableOpacity style={styles.linkContainer}>
+                <Text style={[styles.taskText, t.concluida && styles.strikethroughText]}>
+                  {t.descricao}
+                </Text>
+              </TouchableOpacity>
+            </Link>
 
             <Button 
               title="Excluir" 
@@ -143,8 +153,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 2,
   },
-  taskText: {
+  linkContainer: {
     flex: 1,
+  },
+  taskText: {
     marginHorizontal: 10,
     fontSize: 16,
   },
